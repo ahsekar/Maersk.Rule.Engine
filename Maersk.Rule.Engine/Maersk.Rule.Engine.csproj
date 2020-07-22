@@ -5,8 +5,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Business\" />
-    <Folder Include="Contracts\" />
     <Folder Include="Models\" />
     <Folder Include="Handlers\" />
     <Folder Include="Abstractions\" />

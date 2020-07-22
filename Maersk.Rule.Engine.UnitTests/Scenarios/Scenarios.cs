@@ -130,7 +130,7 @@ namespace Maersk.Rule.Engine.UnitTests.Scenarios
         [Fact]
         public void GivenPaymentIsMadeForMembershipUpgrade_ThenUpgrade_AndNotifyEmailToOwner() 
         {
-            _manager.Setup(x => x.UpgradeMembershi(It.IsAny<HttpContext>())).Returns(true);
+            _manager.Setup(x => x.UpgradeMembership(It.IsAny<HttpContext>())).Returns(true);
             _manager.Setup(x => x.NotifyEmail(It.IsAny<HttpContext>())).Returns(true);
             upgradeMembershipHandler.Next(notifyEmailHandler.Invoke);
             notifyEmailHandler.Next(responseHandler.Invoke);
@@ -212,7 +212,7 @@ namespace Maersk.Rule.Engine.UnitTests.Scenarios
         [Fact]
         public void GivenPaymentIsMadeForMembershipUpgrade_WHenErrorOccured_ThenBreakthChainAndReturnError()
         {
-            _manager.Setup(x => x.UpgradeMembershi(It.IsAny<HttpContext>())).Returns(false);
+            _manager.Setup(x => x.UpgradeMembership(It.IsAny<HttpContext>())).Returns(false);
             upgradeMembershipHandler.Next(notifyEmailHandler.Invoke);
             var result = upgradeMembershipHandler.Invoke(new DefaultHttpContext());
             Assert.NotNull(result);

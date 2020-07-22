@@ -31,7 +31,7 @@ namespace Maersk.Rule.Engine.Handlers
         {
             try
             {
-                var status = _manager.UpgradeMembershi(httpContext);
+                var status = _manager.UpgradeMembership(httpContext);
                 if (status)
                 {
                     _logger.LogInformation("Membership has been upgrade");

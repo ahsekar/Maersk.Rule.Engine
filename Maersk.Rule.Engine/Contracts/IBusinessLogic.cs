@@ -10,7 +10,7 @@ namespace Maersk.Rule.Engine.Contracts
         bool NotifyEmail(HttpContext httpcontext);
         bool PhysicalProductPacking(HttpContext httpcontext);
         bool ProcessCommision(HttpContext httpcontext);
-        bool UpgradeMembershi(HttpContext httpcontext);
+        bool UpgradeMembership(HttpContext httpcontext);
         //Add more business logics to extend this feature
     }
 }
