@@ -18,17 +18,24 @@ namespace Maersk.Rule.Engine.UnitTests.Scenarios
         public ProcessCommissionPaymentHandler processCommissionPaymentHandler;
         public PhysicalProductPackingSlipHandler physicalProductPackingSlipHandler;
         public CreateDuplicateSlipForRoyaldepartmentHandler createDuplicateSlip;
+        public NotifyEmailHandler notifyEmailHandler;
+        public ActivateMemeberShipHandler activateMemeberShipHandler;
         public ResponseHandler responseHandler;
         public Scenarios()
         {
             _manager = new Mock<IBusinessLogic>();
             _logger = new Mock<ILogger>();
             handlerDelegate = new Mock<HandlerDelegate>();
+            responseHandler = new ResponseHandler(logger: _logger.Object);
             processCommissionPaymentHandler = new ProcessCommissionPaymentHandler(logger: _logger.Object, manager: _manager.Object);
             physicalProductPackingSlipHandler = new PhysicalProductPackingSlipHandler(logger: _logger.Object, manager: _manager.Object);
-            responseHandler = new ResponseHandler(logger: _logger.Object);
             createDuplicateSlip = new CreateDuplicateSlipForRoyaldepartmentHandler(logger: _logger.Object, manager: _manager.Object);
+            notifyEmailHandler = new NotifyEmailHandler(logger: _logger.Object, manager: _manager.Object);
+            activateMemeberShipHandler = new ActivateMemeberShipHandler(logger: _logger.Object, manager: _manager.Object);
         }
+
+        #region PositiveScenarios
+
         [Fact]
         public void GivenPaymentIsMadeForPhysicalProduct_ThenGeneratePackingSlipForShipping_AndGenerateCommisionPayment()
         {
@@ -57,15 +64,6 @@ namespace Maersk.Rule.Engine.UnitTests.Scenarios
                   (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()
               )
               );
-        }
-        [Fact]
-        public void GivenPaymentIsMadeForPhysicalProduct_WHenErrorOccured_ThenBreakthChainAndReturnError()
-        {
-            _manager.Setup(x => x.PhysicalProductPacking(It.IsAny<HttpContext>())).Returns(false);
-            physicalProductPackingSlipHandler.Next(processCommissionPaymentHandler.Invoke);
-            var result = physicalProductPackingSlipHandler.Invoke(new DefaultHttpContext());
-            Assert.NotNull(result);
-            Assert.Equal("FAILED", result.Status);
         }
         [Fact]
         public void GivenPaymentIsMadeForBook_ThenCreateDuplicateSlipForRoyaltyDepartment_AndGenerateCommisionPayment()
@@ -97,6 +95,54 @@ namespace Maersk.Rule.Engine.UnitTests.Scenarios
               );
         }
         [Fact]
+        public void GivenPaymentIsMadeForMembership_ThenActivateMembership_AndNotifyEmailToOwner() 
+        {
+            _manager.Setup(x => x.ActivateMembership(It.IsAny<HttpContext>())).Returns(true);
+            _manager.Setup(x => x.NotifyEmail(It.IsAny<HttpContext>())).Returns(true);
+            activateMemeberShipHandler.Next(notifyEmailHandler.Invoke);
+            notifyEmailHandler.Next(responseHandler.Invoke);
+            var result = activateMemeberShipHandler.Invoke(new DefaultHttpContext());
+            Assert.NotNull(result);
+            Assert.Equal("SUCCESS", result.Status);
+            _logger.Verify(
+               m => m.Log(
+                   LogLevel.Information,
+                   It.IsAny<EventId>(),
+                   It.Is<It.IsAnyType>((object v, Type _) => v.ToString().Contains("Membership has been activated")),
+                   It.IsAny<Exception>(),
+                   (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()
+               )
+               );
+            _logger.Verify(
+              m => m.Log(
+                  LogLevel.Information,
+                  It.IsAny<EventId>(),
+                  It.Is<It.IsAnyType>((object v, Type _) => v.ToString().Contains("Email notification sent")),
+                  It.IsAny<Exception>(),
+                  (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()
+              )
+              );
+        }
+        [Fact]
+        public void GivenPaymentIsMadeForMembershipUpgrade_ThenUpgrade_AndNotifyEmailToOwner() { }
+        [Fact]
+        public void GivenPaymentIsMadeForVideo_ThenAddFreeFirstAidVideor() { }
+
+        #endregion
+
+        #region NegetiveScenarios
+
+        [Fact]
+        public void GivenPaymentIsMadeForPhysicalProduct_WHenErrorOccured_ThenBreakthChainAndReturnError()
+        {
+            _manager.Setup(x => x.PhysicalProductPacking(It.IsAny<HttpContext>())).Returns(false);
+            physicalProductPackingSlipHandler.Next(processCommissionPaymentHandler.Invoke);
+            var result = physicalProductPackingSlipHandler.Invoke(new DefaultHttpContext());
+            Assert.NotNull(result);
+            Assert.Equal("FAILED", result.Status);
+        }
+
+        [Fact]
         public void GivenPaymentIsMadeForBook_WHenErrorOccured_ThenBreakthChainAndReturnError()
         {
             _manager.Setup(x => x.CreateDuplicateSlip(It.IsAny<HttpContext>())).Returns(false);
@@ -105,13 +151,18 @@ namespace Maersk.Rule.Engine.UnitTests.Scenarios
             Assert.NotNull(result);
             Assert.Equal("FAILED", result.Status);
         }
-        [Fact]
-        public void GivenPaymentIsMadeForMembership_ThenActivateMembership_AndNotifyEmailToOwner() { }
-        [Fact]
-        public void GivenPaymentIsMadeForMembershipUpgrade_ThenUpgrade_AndNotifyEmailToOwner() { }
-        [Fact]
-        public void GivenPaymentIsMadeForVideo_ThenAddFreeFirstAidVideor() { }
-        
 
-    }   
+        [Fact]
+        public void GivenPaymentIsMadeForMembership_WHenErrorOccured_ThenBreakthChainAndReturnError()
+        {
+            _manager.Setup(x => x.ActivateMembership(It.IsAny<HttpContext>())).Returns(true);
+            activateMemeberShipHandler.Next(notifyEmailHandler.Invoke);
+            var result = activateMemeberShipHandler.Invoke(new DefaultHttpContext());
+            Assert.NotNull(result);
+            Assert.Equal("FAILED", result.Status);
+        }
+
+        #endregion
+
+    }
 }
