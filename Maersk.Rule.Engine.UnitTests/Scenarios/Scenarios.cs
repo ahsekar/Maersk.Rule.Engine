@@ -21,6 +21,7 @@ namespace Maersk.Rule.Engine.UnitTests.Scenarios
         public NotifyEmailHandler notifyEmailHandler;
         public ActivateMemeberShipHandler activateMemeberShipHandler;
         public ResponseHandler responseHandler;
+        public UpgradeMembershipHandler upgradeMembershipHandler;
         public Scenarios()
         {
             _manager = new Mock<IBusinessLogic>();
@@ -32,6 +33,7 @@ namespace Maersk.Rule.Engine.UnitTests.Scenarios
             createDuplicateSlip = new CreateDuplicateSlipForRoyaldepartmentHandler(logger: _logger.Object, manager: _manager.Object);
             notifyEmailHandler = new NotifyEmailHandler(logger: _logger.Object, manager: _manager.Object);
             activateMemeberShipHandler = new ActivateMemeberShipHandler(logger: _logger.Object, manager: _manager.Object);
+            upgradeMembershipHandler = new UpgradeMembershipHandler(logger: _logger.Object, manager: _manager.Object);
         }
 
         #region PositiveScenarios
@@ -124,7 +126,34 @@ namespace Maersk.Rule.Engine.UnitTests.Scenarios
               );
         }
         [Fact]
-        public void GivenPaymentIsMadeForMembershipUpgrade_ThenUpgrade_AndNotifyEmailToOwner() { }
+        public void GivenPaymentIsMadeForMembershipUpgrade_ThenUpgrade_AndNotifyEmailToOwner() 
+        {
+            _manager.Setup(x => x.UpgradeMembershi(It.IsAny<HttpContext>())).Returns(true);
+            _manager.Setup(x => x.NotifyEmail(It.IsAny<HttpContext>())).Returns(true);
+            upgradeMembershipHandler.Next(notifyEmailHandler.Invoke);
+            notifyEmailHandler.Next(responseHandler.Invoke);
+            var result = upgradeMembershipHandler.Invoke(new DefaultHttpContext());
+            Assert.NotNull(result);
+            Assert.Equal("SUCCESS", result.Status);
+            _logger.Verify(
+               m => m.Log(
+                   LogLevel.Information,
+                   It.IsAny<EventId>(),
+                   It.Is<It.IsAnyType>((object v, Type _) => v.ToString().Contains("Membership has been upgrade")),
+                   It.IsAny<Exception>(),
+                   (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()
+               )
+               );
+            _logger.Verify(
+              m => m.Log(
+                  LogLevel.Information,
+                  It.IsAny<EventId>(),
+                  It.Is<It.IsAnyType>((object v, Type _) => v.ToString().Contains("Email notification sent")),
+                  It.IsAny<Exception>(),
+                  (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()
+              )
+              );
+        }
         [Fact]
         public void GivenPaymentIsMadeForVideo_ThenAddFreeFirstAidVideor() { }
 
@@ -155,9 +184,19 @@ namespace Maersk.Rule.Engine.UnitTests.Scenarios
         [Fact]
         public void GivenPaymentIsMadeForMembership_WHenErrorOccured_ThenBreakthChainAndReturnError()
         {
-            _manager.Setup(x => x.ActivateMembership(It.IsAny<HttpContext>())).Returns(true);
+            _manager.Setup(x => x.ActivateMembership(It.IsAny<HttpContext>())).Returns(false);
             activateMemeberShipHandler.Next(notifyEmailHandler.Invoke);
             var result = activateMemeberShipHandler.Invoke(new DefaultHttpContext());
+            Assert.NotNull(result);
+            Assert.Equal("FAILED", result.Status);
+        }
+
+        [Fact]
+        public void GivenPaymentIsMadeForMembershipUpgrade_WHenErrorOccured_ThenBreakthChainAndReturnError()
+        {
+            _manager.Setup(x => x.UpgradeMembershi(It.IsAny<HttpContext>())).Returns(false);
+            upgradeMembershipHandler.Next(notifyEmailHandler.Invoke);
+            var result = upgradeMembershipHandler.Invoke(new DefaultHttpContext());
             Assert.NotNull(result);
             Assert.Equal("FAILED", result.Status);
         }
